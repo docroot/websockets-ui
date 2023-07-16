@@ -9,8 +9,16 @@ export class Player {
         this.password = password;
     }
 
+    toJSON() {
+        return {
+            login: this.login,
+            password: this.password
+        };
+    }
+
     static fromJson(json: any): Player {
         const { name, password } = json;
         return new Player(name, password);
     }
+
 };

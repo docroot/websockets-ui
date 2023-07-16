@@ -4,11 +4,13 @@ export class Message {
     type: string;
     id: number;
     data: any;
+    rcpt: string;
 
-    constructor(type: string, data: any, id: number = 0) {
+    constructor(type: string, data: any, rcpt: string = '', id: number = 0) {
         this.type = type;
         this.data = data;
         this.id = id;
+        this.rcpt = rcpt;
     }
 
     static fromJson(json: any): Message {
