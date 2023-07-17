@@ -5,7 +5,6 @@ import { Message } from './entities/Message';
 import { PlayerState, Room } from './entities/Room';
 import * as uuid from 'uuid';
 import { Session, SessionState } from './entities/Session';
-import { Ship } from './entities/Ship';
 
 
 export const server = http.createServer();
@@ -174,6 +173,38 @@ function addPlayer2Room(session: Session, request: Message): Message[] {
 }
 
 
+function turn(room: Room, activePlayer: number): Message[] {
+    const resps = new Array<Message>;
+
+    if (room && room.numPlayersInState(PlayerState.READY) === 2) {
+        resps.push(new Message('turn', {
+            currentPlayer: activePlayer
+        }, room.players[0].player.login));
+        resps.push(new Message('turn', {
+            currentPlayer: activePlayer
+        }, room.players[1].player.login));
+        room.activePlayerIdx = activePlayer;
+    }
+    return resps;
+}
+
+
+function win(room: Room, winner: number): Message[] {
+    const resps = new Array<Message>;
+
+    if (room && room.numPlayersInState(PlayerState.READY) === 2) {
+        resps.push(new Message('finish', {
+            winPlayer: winner
+        }, room.players[0].player.login));
+        resps.push(new Message('finish', {
+            winPlayer: winner
+        }, room.players[1].player.login));
+        rooms.delete(room);
+    }
+    return resps;
+}
+
+
 function addShips(session: Session, request: Message): Message[] {
     let err: boolean = true;
     let erTxt: string = 'Unable to add ships';
@@ -190,6 +221,7 @@ function addShips(session: Session, request: Message): Message[] {
         if (room.addShips(playerIdx, data.ships)) {
             if (room.numPlayersInState(PlayerState.READY) === 2) {
                 const activePlayer = Math.round(Math.random());
+                console.log("ActivePlayer " + activePlayer);
                 resps.push(new Message('start_game', {
                     ships: room.players[0].gameField.getShipsAsJson(),
                     currentPlayerIndex: activePlayer
@@ -198,7 +230,8 @@ function addShips(session: Session, request: Message): Message[] {
                     ships: room.players[1].gameField.getShipsAsJson(),
                     currentPlayerIndex: activePlayer
                 }, room.players[1].player.login));
-                room.activePlayerIdx = activePlayer;
+                resps.push(...turn(room, activePlayer));
+                // room.activePlayerIdx = activePlayer;
                 return resps;
             }
             else {
@@ -234,31 +267,43 @@ function attack(session: Session, request: Message): Message[] {
         if (room.activePlayerIdx === playerIdx) {
             const x = data.x;
             const y = data.y;
-            const res = room.attack(playerIdx, x, y);
-            console.log(res);
-            let resStr: string;
-            switch (res) {
-                case 2:
-                    resStr = 'shot';
-                    break;
-                case 3:
-                    resStr = 'killed';
-                    break;
+            const diffs = room.attack(playerIdx, x, y);
+            const res = diffs[0].val;
+            diffs.forEach(diff => {
+                const val = diff.val
+                console.log(res);
+                let resStr: string;
+                switch (val) {
+                    case 2:
+                        resStr = 'shot';
+                        break;
 
-                default:
-                    resStr = 'miss';
-                    break;
+                    case 3:
+                        resStr = 'killed';
+                        break;
+
+                    default:
+                        resStr = 'miss';
+                        break;
+                }
+                resps.push(new Message('attack', {
+                    position: { x: diff.x, y: diff.y },
+                    currentPlayer: playerIdx,
+                    status: resStr
+                }, room.players[0].player.login));
+                resps.push(new Message('attack', {
+                    position: { x: diff.x, y: diff.y },
+                    currentPlayer: playerIdx,
+                    status: resStr
+                }, room.players[1].player.login));
+            });
+            if (res === 4) {
+                const activePlayer = playerIdx > 0 ? 0 : 1;
+                resps.push(...turn(room, activePlayer));
             }
-            resps.push(new Message('attack', {
-                position: { x: x, y: y },
-                currentPlayer: playerIdx,
-                status: resStr
-            }, room.players[0].player.login));
-            resps.push(new Message('attack', {
-                position: { x: x, y: y },
-                currentPlayer: playerIdx,
-                status: resStr
-            }, room.players[1].player.login));
+            else if (res === 3 && room.isGameOver(playerIdx)) {
+                resps.push(...win(room, playerIdx));
+            }
             return resps;
         }
         else {
@@ -274,6 +319,7 @@ function attack(session: Session, request: Message): Message[] {
 
     return resps;
 }
+
 
 function sendMessages(wss: WebSocketServer, ws: WebSocket, msgs: Message[]) {
     msgs.forEach(msg => {
@@ -296,7 +342,9 @@ function sendMessages(wss: WebSocketServer, ws: WebSocket, msgs: Message[]) {
             case '':
                 console.log("Send message to default recipient");
                 console.log('<-\nResponse:', JSON.parse(str));
-                ws.send(str);
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(str);
+                }
                 break;
 
             default:
@@ -328,7 +376,6 @@ function processMessage(session: Session, request: Message): Message[] {
             break;
 
         case "add_user_to_room":
-            // const { name, password } = request.data;
             addPlayer2Room(session, request).forEach(resp => {
                 response.push(resp);
             });
@@ -366,20 +413,6 @@ wss.on('connection', (ws: WebSocket) => {
             const msg = Message.fromJson(JSON.parse(message));
             let response: Message[] = processMessage(session, msg);
             sendMessages(wss, ws, response);
-            // response.forEach((resp) => {
-            //     let str: string = resp.toString();
-            //     console.log('<-\nResponse:', JSON.parse(str));
-            //     if (resp.type === 'update_room' || resp.type === 'update_winners') {
-            //         wss.clients.forEach(client => {
-            //             if (client.readyState === WebSocket.OPEN) {
-            //                 client.send(str, { binary: false });
-            //             }
-            //         });
-            //     }
-            //     else {
-            //         ws.send(str);
-            //     }
-            // });
         } catch (error) {
             console.log(error);
         }
@@ -387,11 +420,20 @@ wss.on('connection', (ws: WebSocket) => {
 
     ws.on('close', () => {
         console.log('Connection closed');
+        const player = session.player;
+        if (player) {
+            playersSessions.delete(player.login);
+            rooms.forEach(room => {
+                room.players.forEach((p, i) => {
+                    if (p.player && p.player.login === player.login) {
+                        const activePlayer = i > 0 ? 0 : 1;
+                        sendMessages(wss, ws, win(room, activePlayer));
+                    }
+                });
+            });
+        }
+        sessions.delete(session);
     });
 
     ws.send(Message.fromJson({ type: "connected", data: { session: session.id }, id: 0 }).toString());
 });
-
-// server.listen(3000, () => {
-//     console.log('WebSocket server is listening on port 3000');
-// });

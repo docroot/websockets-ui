@@ -1,11 +1,18 @@
+export enum ShipState {
+    NONE,
+    HEALTY,
+    HIT,
+    KILLED,
+}
+
+
 export class Ship {
-    // id: string;
     type: string;
     start_x: number;
     start_y: number;
     end_x: number;
     end_y: number;
-    state: number; // 1 - healthy, 2 - wounded, 3 - killed
+    state: number;
     length: number;
     direction: boolean;
     hits: number;
@@ -23,7 +30,7 @@ export class Ship {
         }
         this.type = type;
         this.length = length;
-        this.state = 1;
+        this.state = ShipState.HEALTY;
         this.direction = direction;
         this.hits = 0;
     }
