@@ -55,10 +55,8 @@ export class GameField {
             res = this.field[x + y * 10];
             if (res === 1) {
                 const ship = this.ships.find((s) => {
-                    // console.log(`${s.start_x} <= ${x} && ${x} <= ${s.end_x} && ${s.start_y} <= ${y} && ${y} <= ${s.end_y} == ` + (s.start_x <= x && x <= s.end_x && s.start_y <= y && y <= s.end_y));
                     return (s.start_x <= x && x <= s.end_x && s.start_y <= y && y <= s.end_y);
                 });
-                // console.log(ship);
                 if (ship && ship.hits < ship.length) {
                     ship.hits++;
                     this.field[x + y * 10] = 2;
@@ -114,7 +112,7 @@ export class GameField {
             }
         }
         res.sort((a, b) => { return (a.val - b.val); });
-        console.log(res);
+
         return res;
     }
 

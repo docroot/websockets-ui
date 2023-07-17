@@ -16,6 +16,7 @@ const rooms = new Set<Room>();
 let roomIdx = 1;
 const playersSessions = new Map<string, Session>();
 const roomsById = new Map<number, Room>();
+const winners = new Map<string, number>();
 
 function getPlayer(login: string): Player | undefined {
     const player = players.get(login);
@@ -111,7 +112,26 @@ function getAvaliableRooms(): Message {
         }
     });
 
-    return new Message('update_room', data);
+    return new Message('update_room', data, 'all');
+}
+
+
+function updateWinners(winner: string = ''): Message {
+    if (winner.length) {
+        let wins = winners.get(winner) || 0;
+        wins++;
+        winners.set(winner, wins);
+    }
+
+    let data: any[] = [];
+    console.log(winners);
+
+    winners.forEach((v, k) => {
+        data.push({ name: k, wins: v });
+    });
+    data.sort((a, b) => { return (b.wins - a.wins) });
+
+    return new Message('update_winners', data, 'all');
 }
 
 
@@ -200,6 +220,8 @@ function win(room: Room, winner: number): Message[] {
             winPlayer: winner
         }, room.players[1].player.login));
         rooms.delete(room);
+        resps.push(getAvaliableRooms());
+        resps.push(updateWinners(room.players[winner].player.login));
     }
     return resps;
 }
@@ -271,7 +293,6 @@ function attack(session: Session, request: Message): Message[] {
             const res = diffs[0].val;
             diffs.forEach(diff => {
                 const val = diff.val
-                console.log(res);
                 let resStr: string;
                 switch (val) {
                     case 2:
@@ -369,6 +390,7 @@ function processMessage(session: Session, request: Message): Message[] {
         case "reg":
             response.push(registerPlayer(session, request));
             response.push(getAvaliableRooms());
+            response.push(updateWinners());
             break;
 
         case "create_room":
