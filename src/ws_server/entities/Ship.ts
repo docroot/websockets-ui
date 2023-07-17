@@ -40,9 +40,7 @@ export class Ship {
     }
 
     static fromJson(json: any): Ship {
-        console.log(json);
         const { position, direction, type, length } = json;
-        console.log(`${position}, ${direction}, ${type}, ${length}`);
         const { x, y } = position;
         return new Ship(x, y, direction, type, length);
     }

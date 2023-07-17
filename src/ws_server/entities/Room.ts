@@ -33,16 +33,12 @@ class PlayerInRoom {
 export class Room {
     id: number;
     players: Array<PlayerInRoom>;
-    //    playersFields: Array<GameField>;
     activePlayerIdx: number;
-    //    playersStates: Array<PlayerState>;
 
     constructor(id: number) {
         this.id = id;
         this.players = new Array<PlayerInRoom>;
-        //       this.playersFields = new Array<GameField>;
         this.activePlayerIdx = 0;
-        //        this.playersStates = new Array<PlayerState>;
     }
 
     addPlayer(newPlayer: Player): boolean {
@@ -64,11 +60,8 @@ export class Room {
             const field = player.gameField;
             ships.forEach(element => {
                 const ship = Ship.fromJson(element);
-                console.log(ship);
                 if (!field.addShip(ship)) return false;
             });
-            field.printField();
-            // console.log(field.ships);
             player.state = PlayerState.READY;
             return true;
         }
@@ -83,6 +76,29 @@ export class Room {
         }
 
         return this.players[idx].gameField.checkShipHit(x, y);
+    }
+
+    getRndXY4Attack(playerIdx: number): { x: number, y: number } {
+        let pnt = Math.floor(Math.random() * 99);
+        let dir = Math.round(Math.random()) == 1 ? 1 : -1;
+        console.log("Random index: " + pnt);
+        console.log("Random direction: " + dir);
+        const field = this.players[playerIdx].gameField.field;
+        let idx = pnt;
+        while (field[idx] != 0 && idx < 99 && idx > 0) {
+            idx = idx + dir;
+        }
+        if (field[idx] != 0) {
+            let idx = pnt;
+            while (field[idx] != 0 && idx < 99 && idx > 0) {
+                idx = idx - dir;
+            }
+        }
+        const y = Math.floor(idx / 10);
+        const x = idx % 10;
+        console.log(`{ x: ${x}, y: ${y} }`);
+
+        return { x: x, y: y };
     }
 
 
@@ -115,7 +131,6 @@ export class Room {
             roomUsers: new Array<{ name: string, index: number }>
         };
 
-        // let rUsers: { name: string, index: number }[] = [];
         this.players.forEach((elm, index) => {
             let user = {
                 name: elm.player.login,
@@ -123,12 +138,6 @@ export class Room {
             };
             json.roomUsers.push(user);
         });
-        // json['roomUsers'] = rUsers;
         return json;
     }
-
-    // static fromJson(json: any): Player {
-    //     const { name, password } = json;
-    //     return new Player(name, password);
-    // }
 };

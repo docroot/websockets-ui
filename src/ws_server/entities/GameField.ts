@@ -20,7 +20,6 @@ export class GameField {
     shipsByType: Map<string, number>;
 
     constructor() {
-        // this.id = id;
         this.field = new Array<number>;
         for (let index = 0; index < 100; index++) {
             this.field.push(0); // 0 - empty, 1 - ship, 2 - wounded ship, 3 - killed ship, 4 - miss
@@ -28,14 +27,10 @@ export class GameField {
         }
         this.ships = new Array<Ship>;
         this.shipsByType = new Map<string, number>;
-        // this.printField();
     }
 
     addShip(ship: Ship): boolean {
         this.ships.push(ship);
-        // if (!this.shipsByType.get(ship.type)) {
-        //     this.shipsByType.set(ship.type, 0);
-        // }
         let shipNum = this.shipsByType.get(ship.type) || 0;
         shipNum++;
         this.shipsByType.set(ship.type, shipNum);
@@ -50,7 +45,7 @@ export class GameField {
     checkShipHit(x: number, y: number): FieldDiff[] {
         let res = 4;
         let diff = new Array<FieldDiff>;
-        console.log(`CELL[ ${x}, ${y} ] = ` + this.field[x + y * 10]);
+        // console.log(`CELL[ ${x}, ${y} ] = ` + this.field[x + y * 10]);
         if (x >= 0 && x < 10 && y >= 0 && y < 10) {
             res = this.field[x + y * 10];
             if (res === 1) {
@@ -149,10 +144,4 @@ export class GameField {
         });
         return ships;
     }
-
-    // static fromJson(json: any): GameField {
-    //     const { name, password } = json;
-    //     return new GameField(name, password);
-    // }
-
 };

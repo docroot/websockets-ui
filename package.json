@@ -4,7 +4,7 @@
     "description": "Template for the WebSocket remote control task",
     "main": "index.js",
     "scripts": {
-        "start": "node ./index.js",
+        "start": "ts-node ./index.ts",
         "start:dev": "nodemon ./index.ts",
         "test": "echo \"Error: no test specified\" && exit 1",
         "wss": "ts-node src/ws_server/server.ts"

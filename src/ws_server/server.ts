@@ -53,7 +53,6 @@ function getPlayerSession(player: Player): Session | undefined {
 
 function registerPlayer(session: Session, request: Message): Message {
     let { name, password } = JSON.parse(request.data);
-    // console.log(`${name}, ${password}`);
     let err: boolean = false;
     let erTxt: string = '';
     if (name && password) {
@@ -104,7 +103,7 @@ function registerPlayer(session: Session, request: Message): Message {
 
 function getAvaliableRooms(): Message {
     let data: any[] = [];
-    console.log(rooms);
+    // console.log(rooms);
 
     rooms.forEach(room => {
         if (room.players.length === 1) {
@@ -124,7 +123,7 @@ function updateWinners(winner: string = ''): Message {
     }
 
     let data: any[] = [];
-    console.log(winners);
+    // console.log(winners);
 
     winners.forEach((v, k) => {
         data.push({ name: k, wins: v });
@@ -140,7 +139,7 @@ function createRoom(session: Session, request: Message): Message {
     let erTxt: string = 'Unable to create a room';
     const player = session.player;
     if (player) {
-        console.log("Player is " + player.login);
+        // console.log("Player is " + player.login);
         const id = roomIdx++;
         const newRoom = new Room(id);
         newRoom.addPlayer(player);
@@ -164,11 +163,11 @@ function addPlayer2Room(session: Session, request: Message): Message[] {
     const player = session.player;
     const data = JSON.parse(request.data);
     const roomId = data.indexRoom;
-    console.log(`room id: [${roomId}]`);
+    // console.log(`room id: [${roomId}]`);
     const resps = new Array<Message>;
-    console.log(player);
+    // console.log(player);
     if (player && roomId) {
-        console.log("Player is " + player.login);
+        // console.log("Player is " + player.login);
         const room = roomsById.get(roomId);
         if (room) {
             if (room.players.length === 1 && room.players[0].player.login != player.login) {
@@ -185,10 +184,6 @@ function addPlayer2Room(session: Session, request: Message): Message[] {
         }
     }
 
-    // return new Message(request.type, {
-    //     error: err,
-    //     errorText: erTxt,
-    // });
     return resps;
 }
 
@@ -233,17 +228,17 @@ function addShips(session: Session, request: Message): Message[] {
     let rcpt = '';
     const data = JSON.parse(request.data);
     const roomId = data.gameId;
-    console.log(`ROOM ID: [${roomId}]`);
+    // console.log(`ROOM ID: [${roomId}]`);
     const resps = new Array<Message>;
     const room = roomsById.get(roomId);
     if (room) {
         const playerIdx = data.indexPlayer;
-        console.log(`PLAYER IDX: [${playerIdx}]`);
+        // console.log(`PLAYER IDX: [${playerIdx}]`);
         // console.log(data.ships);
         if (room.addShips(playerIdx, data.ships)) {
             if (room.numPlayersInState(PlayerState.READY) === 2) {
                 const activePlayer = Math.round(Math.random());
-                console.log("ActivePlayer " + activePlayer);
+                // console.log("ActivePlayer " + activePlayer);
                 resps.push(new Message('start_game', {
                     ships: room.players[0].gameField.getShipsAsJson(),
                     currentPlayerIndex: activePlayer
@@ -253,7 +248,6 @@ function addShips(session: Session, request: Message): Message[] {
                     currentPlayerIndex: activePlayer
                 }, room.players[1].player.login));
                 resps.push(...turn(room, activePlayer));
-                // room.activePlayerIdx = activePlayer;
                 return resps;
             }
             else {
@@ -280,12 +274,12 @@ function attack(session: Session, request: Message): Message[] {
     let rcpt = '';
     const data = JSON.parse(request.data);
     const roomId = data.gameId;
-    console.log(`ROOM ID: [${roomId}]`);
+    // console.log(`ROOM ID: [${roomId}]`);
     const resps = new Array<Message>;
     const room = roomsById.get(roomId);
     if (room) {
         const playerIdx = data.indexPlayer;
-        console.log(`PLAYER IDX: [${playerIdx}]`);
+        // console.log(`PLAYER IDX: [${playerIdx}]`);
         if (room.activePlayerIdx === playerIdx) {
             const x = data.x;
             const y = data.y;
@@ -337,6 +331,43 @@ function attack(session: Session, request: Message): Message[] {
         error: err,
         errorText: erTxt,
     }, rcpt));
+
+    return resps;
+}
+
+
+function randomAttack(session: Session, request: Message): Message[] {
+    let err: boolean = true;
+    let erTxt: string = 'Unable to attack';
+    const data = JSON.parse(request.data);
+    const roomId = data.gameId;
+    const playerIdx = data.indexPlayer;
+    // console.log(`ROOM ID: [${roomId}]`);
+    const resps = new Array<Message>;
+    const room = roomsById.get(roomId);
+    if (room) {
+        const playerIdx = data.indexPlayer;
+        if (room.activePlayerIdx === playerIdx) {
+            const { x, y } = room.getRndXY4Attack(playerIdx);
+            resps.push(...attack(session,
+                new Message('attack', JSON.stringify({
+                    gameId: roomId,
+                    x: x,
+                    y: y,
+                    indexPlayer: playerIdx
+                }))
+            ));
+            return resps;
+        }
+        else {
+            erTxt = 'Not your turn';
+        }
+    }
+
+    resps.push(new Message(request.type, {
+        error: err,
+        errorText: erTxt,
+    }));
 
     return resps;
 }
@@ -414,7 +445,11 @@ function processMessage(session: Session, request: Message): Message[] {
                 response.push(resp);
             });
             break;
-
+        case 'randomAttack':
+            randomAttack(session, request).forEach(resp => {
+                response.push(resp);
+            });
+            break;
         default:
             response.push(new Message("error", { 'error': true, 'errorText': "Unknow message type" }));
             break;
